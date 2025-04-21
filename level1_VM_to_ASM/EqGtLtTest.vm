@@ -1,0 +1,16 @@
+// Eq/Gt/Lt test
+
+// test eq
+push constant 5
+push constant 5
+eq
+
+// test gt
+push constant 6
+push constant 5
+gt
+
+// test lt
+push constant 3
+push constant 7
+lt
