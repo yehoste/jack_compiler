@@ -1,11 +1,36 @@
 module main
 
-fn main() {
-	input  := "EqGtLtTest.vm"
-	output := "EqGtLtTest.asm"
+import os
 
-	mut parser := new_parser(input)!      // bang on error
-	mut writer := new_code_writer(output)!
+fn main() {
+	// input  := "EqGtLtTest.vm"
+	// output := "EqGtLtTest.asm"
+
+	if os.args.len != 2 {
+        eprintln('Usage: VMTranslator <file_path>')
+        return
+    }
+    
+    file_path := os.args[1]
+    if !os.exists(file_path) {
+        eprintln('Error: File "$file_path" not found.')
+        return
+    }
+
+    // Assuming you have a function to initialize your CodeWriter and Parser
+    mut parser := new_parser(file_path) or {
+        eprintln('Error reading file "$file_path".')
+        return
+    }
+    
+    output_file := file_path.replace('.vm', '.asm')
+    mut writer := new_code_writer(output_file) or {
+        eprintln('Error opening output file "$output_file".')
+        return
+    }
+
+	// mut parser := new_parser(file_path)!      // bang on error
+	// mut writer := new_code_writer(output)!
 
 	for parser.has_more_lines() {
 		parser.advance()
@@ -18,5 +43,5 @@ fn main() {
 	}
 
 	writer.close()
-	println("Translation complete ▶ $output")
+	println("Translation complete ▶ $output_file")
 }
