@@ -1,10 +1,11 @@
+//yehoshua steinitz 329114573
+//eliel monfort 328269121
+
 module main
 
 import os
 
 fn main() {
-	// input  := "EqGtLtTest.vm"
-	// output := "EqGtLtTest.asm"
 
 	if os.args.len != 2 {
         eprintln('Usage: VMTranslator <file_path>')
@@ -17,7 +18,6 @@ fn main() {
         return
     }
 
-    // Assuming you have a function to initialize your CodeWriter and Parser
     mut parser := new_parser(file_path) or {
         eprintln('Error reading file "$file_path".')
         return
@@ -29,8 +29,6 @@ fn main() {
         return
     }
 
-	// mut parser := new_parser(file_path)!      // bang on error
-	// mut writer := new_code_writer(output)!
 
 	for parser.has_more_lines() {
 		parser.advance()

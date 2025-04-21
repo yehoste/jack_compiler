@@ -1,3 +1,6 @@
+//yehoshua steinitz 329114573
+//eliel monfort 328269121
+
 module main
 
 import os
@@ -16,7 +19,6 @@ pub mut:
 	current_index int
 }
 
-// Now returns !Parser so we can `?` on file errors
 pub fn new_parser(file_path string) !Parser {
 	lines := os.read_lines(file_path)!
 	return Parser{

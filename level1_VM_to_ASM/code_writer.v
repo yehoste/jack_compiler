@@ -1,3 +1,6 @@
+//yehoshua steinitz 329114573
+//eliel monfort 328269121
+
 module main
 
 import os
