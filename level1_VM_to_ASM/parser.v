@@ -5,6 +5,7 @@ module main
 
 import os
 
+// VM command types
 pub enum CommandType {
 	c_arithmetic
 	c_push
@@ -19,6 +20,7 @@ pub mut:
 	current_index int
 }
 
+// create parser from file
 pub fn new_parser(file_path string) !Parser {
 	lines := os.read_lines(file_path)!
 	return Parser{
@@ -27,9 +29,10 @@ pub fn new_parser(file_path string) !Parser {
 	}
 }
 
+// check if more lines exist
 pub fn (p Parser) has_more_lines() bool {
 	for i := p.current_index + 1; i < p.lines.len; i++ {
-		line := p.lines[i].all_before('//').trim_space()
+		line := p.lines[i].all_before('//').trim_space()	//chack if its a comment and remove it
 		if line != '' {
 			return true
 		}
@@ -37,6 +40,7 @@ pub fn (p Parser) has_more_lines() bool {
 	return false
 }
 
+// move to next valid line
 pub fn (mut p Parser) advance() {
 	for {
 		p.current_index++
@@ -44,7 +48,7 @@ pub fn (mut p Parser) advance() {
 			p.current_line = ''
 			return
 		}
-		line := p.lines[p.current_index].all_before('//').trim_space()
+		line := p.lines[p.current_index].all_before('//').trim_space()	//chack if its a comment and remove it
 		if line != '' {
 			p.current_line = line
 			return
@@ -52,6 +56,7 @@ pub fn (mut p Parser) advance() {
 	}
 }
 
+// get command type from current line
 pub fn (p Parser) command_type() CommandType {
 	toks := p.current_line.split(' ')
 	if toks.len == 0 {
@@ -67,6 +72,7 @@ pub fn (p Parser) command_type() CommandType {
 	}
 }
 
+// get first argument
 pub fn (p Parser) arg1() string {
 	ct := p.command_type()
 	toks := p.current_line.split(' ')
@@ -77,6 +83,7 @@ pub fn (p Parser) arg1() string {
 	}
 }
 
+// get second argument (only for push/pop)
 pub fn (p Parser) arg2() int {
 	ct := p.command_type()
 	toks := p.current_line.split(' ')
@@ -85,3 +92,4 @@ pub fn (p Parser) arg2() int {
 	}
 	return 0
 }
+

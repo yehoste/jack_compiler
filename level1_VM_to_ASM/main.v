@@ -6,30 +6,34 @@ module main
 import os
 
 fn main() {
-
+	// check if exactly one argument is passed
 	if os.args.len != 2 {
         eprintln('Usage: VMTranslator <file_path>')
         return
     }
     
     file_path := os.args[1]
+    
+    // check if file exists
     if !os.exists(file_path) {
         eprintln('Error: File "$file_path" not found.')
         return
     }
 
+    // initialize parser
     mut parser := new_parser(file_path) or {
         eprintln('Error reading file "$file_path".')
         return
     }
     
+    // prepare output file path and code writer
     output_file := file_path.replace('.vm', '.asm')
     mut writer := new_code_writer(output_file) or {
         eprintln('Error opening output file "$output_file".')
         return
     }
 
-
+	// translate each VM command to assembly
 	for parser.has_more_lines() {
 		parser.advance()
 		ct := parser.command_type()
@@ -41,5 +45,6 @@ fn main() {
 	}
 
 	writer.close()
-	println("Translation complete ▶ $output_file")
+	println("Translation complete -> $output_file")
 }
+

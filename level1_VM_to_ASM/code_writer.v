@@ -5,12 +5,14 @@ module main
 
 import os
 
+// Handles writing assembly code
 struct CodeWriter {
 mut:
 	file      os.File
-	label_cnt int
+	label_cnt int // counter for generating unique labels
 }
 
+// create a new CodeWriter
 pub fn new_code_writer(path string) !CodeWriter {
 	f := os.create(path)!
 	return CodeWriter{
@@ -18,6 +20,7 @@ pub fn new_code_writer(path string) !CodeWriter {
 	}
 }
 
+// write arithmetic operation to file
 pub fn (mut cw CodeWriter) write_arithmetic(command string) {
 	match command {
 		'add', 'sub', 'and', 'or' {
@@ -29,13 +32,13 @@ pub fn (mut cw CodeWriter) write_arithmetic(command string) {
 				else { '' }
 			}
 			cw.write_lines([
-				'@SP', 'AM=M-1', 'D=M', // SP--, D=*SP
-				'A=A-1', 'M=M${op}D'    // *(SP-1) = *(SP-1) op D
+				'@SP', 'AM=M-1', 'D=M',       // pop top of stack into D
+				'A=A-1', 'M=M${op}D'          // perform operation and store result
 			])
 		}
 		'neg', 'not' {
 			op := if command == 'neg' { '-' } else { '!' }
-			cw.write_lines(['@SP', 'A=M-1', 'M=${op}M'])
+			cw.write_lines(['@SP', 'A=M-1', 'M=${op}M']) // apply op to top of stack
 		}
 		'eq', 'gt', 'lt' {
 			jmp := match command {
@@ -49,12 +52,12 @@ pub fn (mut cw CodeWriter) write_arithmetic(command string) {
 			cw.label_cnt++
 			cw.write_lines([
 				'@SP', 'AM=M-1', 'D=M',
-				'A=A-1', 'D=M-D',
-				"@${label_true}", "D;${jmp}",
-				'@SP', 'A=M-1', 'M=0',
-				"@${label_end}", '0;JMP',
+				'A=A-1', 'D=M-D',                 // compare top two values
+				"@${label_true}", "D;${jmp}",     // jump if condition is true
+				'@SP', 'A=M-1', 'M=0',            // false case (0)
+				"@${label_end}", '0;JMP',         // jump to end
 				"(${label_true})",
-				'@SP', 'A=M-1', 'M=-1',
+				'@SP', 'A=M-1', 'M=-1',           // true case (-1)
 				"(${label_end})"
 			])
 		}
@@ -62,6 +65,7 @@ pub fn (mut cw CodeWriter) write_arithmetic(command string) {
 	}
 }
 
+// write push or pop command
 pub fn (mut cw CodeWriter) write_push_pop(command string, segment string, index int) {
 	match command {
 		'c_push' {
@@ -127,9 +131,9 @@ pub fn (mut cw CodeWriter) write_push_pop(command string, segment string, index 
 					cw.write_lines([
 						"@${index}", 'D=A',
 						"@${base}", 'D=M+D',
-						'@R13', 'M=D',
-						'@SP', 'AM=M-1', 'D=M',
-						'@R13', 'A=M', 'M=D'
+						'@R13', 'M=D',                    // store target address in R13
+						'@SP', 'AM=M-1', 'D=M',           // pop stack to D
+						'@R13', 'A=M', 'M=D'              // store D into calculated address
 					])
 				}
 				'temp' {
@@ -159,12 +163,14 @@ pub fn (mut cw CodeWriter) write_push_pop(command string, segment string, index 
 	}
 }
 
+// helper to write multiple lines to file
 fn (mut cw CodeWriter) write_lines(lines []string) {
 	for line in lines {
 		cw.file.writeln(line) or { panic(err) }
 	}
 }
 
+// close output file
 pub fn (mut cw CodeWriter) close() {
 	cw.file.close()
 }
