@@ -6,45 +6,60 @@ module main
 import os
 
 fn main() {
-	// check if exactly one argument is passed
-	if os.args.len != 2 {
-        eprintln('Usage: VMTranslator <file_path>')
-        return
-    }
-    
-    file_path := os.args[1]
-    
-    // check if file exists
-    if !os.exists(file_path) {
-        eprintln('Error: File "$file_path" not found.')
+    if os.args.len != 2 {
+        eprintln('Usage: VMTranslator <directory_path>')
         return
     }
 
-    // initialize parser
-    mut parser := new_parser(file_path) or {
-        eprintln('Error reading file "$file_path".')
+    dir_path := os.args[1]
+
+    if !os.is_dir(dir_path) {
+        eprintln('Error: "$dir_path" is not a directory.')
         return
     }
-    
-    // prepare output file path and code writer
-    output_file := file_path.replace('.vm', '.asm')
+
+    dir_name := os.file_name(dir_path)
+    output_file := os.join_path(dir_path, "${dir_name}.asm")
+
     mut writer := new_code_writer(output_file) or {
         eprintln('Error opening output file "$output_file".')
         return
     }
 
-	// translate each VM command to assembly
-	for parser.has_more_lines() {
-		parser.advance()
-		ct := parser.command_type()
-		if ct == .c_arithmetic {
-			writer.write_arithmetic(parser.arg1())
-		} else if ct == .c_push || ct == .c_pop {
-			writer.write_push_pop(ct.str(), parser.arg1(), parser.arg2())
-		}
-	}
+    // Optional: writer.write_init()
 
-	writer.close()
-	println("Translation complete -> $output_file")
+    files := os.ls(dir_path) or {
+        eprintln('Error: Failed to list contents of "$dir_path".')
+        return
+    }
+
+    for file in files {
+        if file.ends_with('.vm') {
+            vm_path := os.join_path(dir_path, file)
+
+            mut parser := new_parser(vm_path) or {
+                eprintln('Error reading file "$vm_path". Skipping...')
+                continue
+            }
+
+            // Optional: set file context for static or label handling
+            // writer.set_file_name(file)
+
+            for parser.has_more_lines() {
+                parser.advance()
+                ct := parser.command_type()
+                if ct == .c_arithmetic {
+                    writer.write_arithmetic(parser.arg1())
+                } else if ct == .c_push || ct == .c_pop {
+                    writer.write_push_pop(ct.str(), parser.arg1(), parser.arg2())
+                }
+                // Add additional command types if needed
+            }
+        }
+    }
+
+    writer.close()
+    println("Translation complete -> $output_file")
 }
+
 
