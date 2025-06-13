@@ -52,6 +52,7 @@ fn (mut t Tokenizer) tokenize() {
 }
 
 
+
 fn (t Tokenizer) to_xml() string {
     mut result := '<tokens>\n'
     for token in t.tokens {
