@@ -82,7 +82,7 @@ fn classify_token(token string) string {
 
 fn xml_escape(token string) string {
     if token.starts_with('"') && token.ends_with('"') {
-        return token[1..token.len-1].trim_space()
+        return token[1..token.len-1].trim_space() + " "
     }
     return token.replace_each(['&', '&amp;', '<', '&lt;', '>', '&gt;'])
 }
