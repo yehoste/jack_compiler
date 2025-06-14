@@ -46,7 +46,7 @@ fn (mut p Parser) wrap_block(tag string, body fn () string) string {
 }
 
 fn (mut p Parser) parse_class() string {
-	return p.wrap_block('class', fn  () string {
+	return p.wrap_block('class', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.eat('class'))
 		result += p.wrap('identifier', p.advance())
@@ -63,7 +63,7 @@ fn (mut p Parser) parse_class() string {
 }
 
 fn (mut p Parser) parse_class_var_dec() string {
-	return p.wrap_block('classVarDec', fn  () string {
+	return p.wrap_block('classVarDec', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.advance())
 		result += p.parse_type()
@@ -86,7 +86,7 @@ fn (mut p Parser) parse_type() string {
 }
 
 fn (mut p Parser) parse_subroutine() string {
-	return p.wrap_block('subroutineDec', fn  () string {
+	return p.wrap_block('subroutineDec', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.advance())
 		if p.peek() == 'void' {
@@ -104,7 +104,7 @@ fn (mut p Parser) parse_subroutine() string {
 }
 
 fn (mut p Parser) parse_parameter_list() string {
-	return p.wrap_block('parameterList', fn  () string {
+	return p.wrap_block('parameterList', fn [mut p] () string {
 		mut result := ''
 		if p.peek() != ')' {
 			result += p.parse_type()
@@ -120,7 +120,7 @@ fn (mut p Parser) parse_parameter_list() string {
 }
 
 fn (mut p Parser) parse_subroutine_body() string {
-	return p.wrap_block('subroutineBody', fn  () string {
+	return p.wrap_block('subroutineBody', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('symbol', p.eat('{'))
 		for p.peek() == 'var' {
@@ -133,7 +133,7 @@ fn (mut p Parser) parse_subroutine_body() string {
 }
 
 fn (mut p Parser) parse_var_dec() string {
-	return p.wrap_block('varDec', fn  () string {
+	return p.wrap_block('varDec', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.eat('var'))
 		result += p.parse_type()
@@ -148,7 +148,7 @@ fn (mut p Parser) parse_var_dec() string {
 }
 
 fn (mut p Parser) parse_statements() string {
-	return p.wrap_block('statements', fn  () string {
+	return p.wrap_block('statements', fn [mut p] () string {
 		mut result := ''
 		for p.peek() in ['let', 'if', 'while', 'do', 'return'] {
 			if p.peek() == 'let' {
@@ -168,7 +168,7 @@ fn (mut p Parser) parse_statements() string {
 }
 
 fn (mut p Parser) parse_let() string {
-	return p.wrap_block('letStatement', fn  () string {
+	return p.wrap_block('letStatement', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.eat('let'))
 		result += p.wrap('identifier', p.advance())
@@ -185,7 +185,7 @@ fn (mut p Parser) parse_let() string {
 }
 
 fn (mut p Parser) parse_if() string {
-	return p.wrap_block('ifStatement', fn  () string {
+	return p.wrap_block('ifStatement', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.eat('if'))
 		result += p.wrap('symbol', p.eat('('))
@@ -205,7 +205,7 @@ fn (mut p Parser) parse_if() string {
 }
 
 fn (mut p Parser) parse_while() string {
-	return p.wrap_block('whileStatement', fn  () string {
+	return p.wrap_block('whileStatement', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.eat('while'))
 		result += p.wrap('symbol', p.eat('('))
@@ -219,7 +219,7 @@ fn (mut p Parser) parse_while() string {
 }
 
 fn (mut p Parser) parse_do() string {
-	return p.wrap_block('doStatement', fn  () string {
+	return p.wrap_block('doStatement', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.eat('do'))
 		result += p.parse_subroutine_call()
@@ -229,7 +229,7 @@ fn (mut p Parser) parse_do() string {
 }
 
 fn (mut p Parser) parse_return() string {
-	return p.wrap_block('returnStatement', fn  () string {
+	return p.wrap_block('returnStatement', fn [mut p] () string {
 		mut result := ''
 		result += p.wrap('keyword', p.eat('return'))
 		if p.peek() != ';' {
@@ -241,10 +241,10 @@ fn (mut p Parser) parse_return() string {
 }
 
 fn (mut p Parser) parse_expression() string {
-	return p.wrap_block('expression', fn  () string {
+	return p.wrap_block('expression', fn [mut p] () string {
 		mut res := p.parse_term()
 		for p.peek() in ['+', '-', '*', '/', '&', '|', '<', '>', '='] {
-			res += p.wrap('symbol', p.advance())
+			res += p.wrap('symbol', xml_escape(p.advance()))
 			res += p.parse_term()
 		}
 		return res
@@ -252,10 +252,9 @@ fn (mut p Parser) parse_expression() string {
 }
 
 fn (mut p Parser) parse_term() string {
-	return p.wrap_block('term', fn  () string {
+	return p.wrap_block('term', fn [mut p] () string {
 		mut result := ''
 		token := p.peek()
-
 		if token == '(' {
 			result += p.wrap('symbol', p.advance())
 			result += p.parse_expression()
@@ -282,7 +281,7 @@ fn (mut p Parser) parse_term() string {
 }
 
 fn (mut p Parser) parse_expression_list() string {
-	return p.wrap_block('expressionList', fn  () string {
+	return p.wrap_block('expressionList', fn [mut p] () string {
 		mut result := ''
 		if p.peek() != ')' {
 			result += p.parse_expression()
