@@ -51,8 +51,6 @@ fn (mut t Tokenizer) tokenize() {
     }
 }
 
-
-
 fn (t Tokenizer) to_xml() string {
     mut result := '<tokens>\n'
     for token in t.tokens {
@@ -83,5 +81,9 @@ fn classify_token(token string) string {
 }
 
 fn xml_escape(token string) string {
+    if token.starts_with('"') && token.ends_with('"') {
+        return token[1..token.len-1].trim_space()
+    }
     return token.replace_each(['&', '&amp;', '<', '&lt;', '>', '&gt;'])
 }
+
