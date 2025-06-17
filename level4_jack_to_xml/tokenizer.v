@@ -56,7 +56,7 @@ fn (t Tokenizer) to_xml() string {
     for token in t.tokens {
         token_type := classify_token(token)
         xml_token := xml_escape(token)
-        result += '  <$token_type> $xml_token </$token_type>\n'
+        result += '<$token_type> $xml_token </$token_type>\n'
     }
     result += '</tokens>\n'
     return result
