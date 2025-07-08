@@ -55,19 +55,21 @@ fn (mut p Parser) parse_class() string {
 }
 
 fn (mut p Parser) parse_class_var_dec() {
-	kind := p.advance() // static or field
-	_ := p.advance() // type
-	p.advance() // varName
-	for p.peek() == ',' {
+	_ = p.advance() // static or field
+	_ = p.advance() // type
+	_ = p.advance() // varName
+	mut token := p.peek()
+	for token == ',' {
 		p.advance()
-		p.advance()
+		_ = p.advance()
+		token = p.peek()
 	}
 	p.eat(';')
 }
 
 fn (mut p Parser) parse_subroutine() {
-	subroutine_type := p.advance() // constructor, function, method
-	_ := p.advance() // return type
+	_ = p.advance() // constructor, function, method
+	_ = p.advance() // return type
 	subroutine_name := p.advance()
 	p.eat('(')
 	p.parse_parameter_list()
@@ -88,10 +90,12 @@ fn (mut p Parser) parse_parameter_list() {
 	if p.peek() != ')' {
 		_ = p.advance() // type
 		_ = p.advance() // varName
-		while p.peek() == ',' {
+		mut token := p.peek()
+		for token == ',' {
 			p.advance()
 			_ = p.advance()
 			_ = p.advance()
+			token = p.peek()
 		}
 	}
 }
@@ -100,9 +104,11 @@ fn (mut p Parser) parse_var_dec() {
 	p.eat('var')
 	_ = p.advance() // type
 	_ = p.advance() // varName
-	while p.peek() == ',' {
+	mut token := p.peek()
+	for token == ',' {
 		p.advance()
 		_ = p.advance()
+		token = p.peek()
 	}
 	p.eat(';')
 }
@@ -123,22 +129,20 @@ fn (mut p Parser) parse_statements() {
 fn (mut p Parser) parse_let() {
 	p.eat('let')
 	var_name := p.advance()
-	is_array := false
+	mut is_array := false
 	if p.peek() == '[' {
 		is_array = true
 		p.eat('[')
 		p.parse_expression()
 		p.eat(']')
-		// push base + index (array support to be added)
 	}
 	p.eat('=')
 	p.parse_expression()
 	p.eat(';')
 	if is_array {
-		// For now, we won't implement array logic fully
-		p.write('// let $var_name[...] = ...')
+		p.write('// let ${var_name}[...] = ... (not implemented)')
 	} else {
-		p.write('pop local 0') // dummy pop
+		p.write('pop local 0') // dummy, replace with actual logic
 	}
 }
 
@@ -240,32 +244,56 @@ fn (mut p Parser) parse_term() {
 		} else {
 			p.write('not')
 		}
-	} else if classify_token(token) == 'integerConstant' {
+	} else if is_integer(token) {
 		val := p.advance().int()
 		p.write('push constant $val')
 	} else {
-		p.advance() // identifier (we don't handle vars/subcalls here fully)
+		// identifier: could be var or subroutine call
+		identifier := p.advance()
+		if p.peek() == '[' {
+			p.eat('[')
+			p.parse_expression()
+			p.eat(']')
+			p.write('// array access: $identifier[...]')
+		} else if p.peek() == '(' || p.peek() == '.' {
+			p.index-- // backtrack to reparse as subroutine
+			p.parse_subroutine_call()
+		} else {
+			p.write('push local 0') // placeholder for var
+		}
 	}
 }
 
 fn (mut p Parser) parse_subroutine_call() {
-	_ = p.advance() // name or class/var
+	name := p.advance()
+	mut full_name := name
+	mut arg_count := 0
 	if p.peek() == '.' {
-		p.advance()
-		_ = p.advance() // subroutine name
+		p.eat('.')
+		full_name = '${name}.${p.advance()}'
 	}
 	p.eat('(')
-	p.parse_expression_list()
+	arg_count = p.parse_expression_list()
 	p.eat(')')
-	p.write('call Foo.bar 0') // dummy call
+	p.write('call $full_name $arg_count')
 }
 
-fn (mut p Parser) parse_expression_list() {
+fn (mut p Parser) parse_expression_list() int {
+	mut count := 0
 	if p.peek() != ')' {
 		p.parse_expression()
-		while p.peek() == ',' {
+		count++
+		mut token := p.peek()
+		for token == ',' {
 			p.advance()
 			p.parse_expression()
+			count++
+			token = p.peek()
 		}
 	}
+	return count
+}
+
+fn is_integer(s string) bool {
+	return s.len > 0 && s[0].is_digit()
 }
