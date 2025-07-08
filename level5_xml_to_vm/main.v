@@ -65,7 +65,7 @@ fn main() {
 				tokens: tokenizer.tokens
 			}
 			parsed_xml := parser.parse_class()
-			os.write_file(os.join_path(folder, file.replace('.jack', '.xml')), parsed_xml) or {
+			os.write_file(os.join_path(folder, file.replace('.jack', '.vm')), parsed_xml) or {
 				println('Failed to write .xml for $file')
 			}
 		}
