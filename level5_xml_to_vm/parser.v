@@ -1,5 +1,10 @@
 module main
 
+struct VarInfo {
+    segment string
+    index   int
+}
+
 struct Parser {
     tokens []string
     mut:
@@ -7,8 +12,11 @@ struct Parser {
         class_name   string
         output       string
         label_index  int
-        var_count    int
-        var_map      map[string]int
+        local_count  int
+        arg_count    int
+        field_count  int
+        static_count int
+        var_map      map[string]VarInfo
 }
 
 fn (mut p Parser) peek() string {
@@ -40,11 +48,7 @@ fn (mut p Parser) parse_class() string {
     p.class_name = p.advance()
     p.eat('{')
     for p.peek() in ['static', 'field'] {
-        p.advance(); p.advance(); p.advance() // ignore class vars
-        for p.peek() == ',' {
-            p.advance(); p.advance()
-        }
-        p.eat(';')
+        p.parse_class_var_dec()
     }
     for p.peek() in ['constructor', 'function', 'method'] {
         p.parse_subroutine()
@@ -53,50 +57,73 @@ fn (mut p Parser) parse_class() string {
     return p.output
 }
 
+fn (mut p Parser) parse_class_var_dec() {
+    kind := p.advance() // static or field
+    _ = p.advance()     // type
+    name := p.advance()
+    seg := if kind == 'static' { 'static' } else { 'this' }
+    count := if kind == 'static' { &p.static_count } else { &p.field_count }
+    p.var_map[name] = VarInfo{ segment: seg, index: *count }
+    (*count)++
+    for p.peek() == ',' {
+        p.advance()
+        name2 := p.advance()
+        p.var_map[name2] = VarInfo{ segment: seg, index: *count }
+        (*count)++
+    }
+    p.eat(';')
+}
+
 fn (mut p Parser) parse_subroutine() {
-    _ = p.advance()
-    _ = p.advance()
+    _ = p.advance() // constructor/function/method
+    _ = p.advance() // return type
     sub_name := p.advance()
     p.eat('(')
+
+    p.arg_count = 0
+    p.local_count = 0
+    p.var_map.clear()
+
     p.parse_parameter_list()
     p.eat(')')
+
     p.eat('{')
-    p.var_count = 0
-    p.var_map.clear()
     for p.peek() == 'var' {
         p.parse_var_dec()
     }
-    p.write('function ${p.class_name}.$sub_name $p.var_count')
+
+    p.write('function ${p.class_name}.$sub_name $p.local_count')
     p.parse_statements()
     p.eat('}')
 }
 
 fn (mut p Parser) parse_parameter_list() {
     if p.peek() != ')' {
-        p.advance()
+        _ = p.advance() // type
         name := p.advance()
-        p.var_map[name] = p.var_count
-        p.var_count++
+        p.var_map[name] = VarInfo{ segment: 'argument', index: p.arg_count }
+        p.arg_count++
         for p.peek() == ',' {
-            p.advance(); p.advance()
+            p.advance()
+            _ = p.advance() // type
             name2 := p.advance()
-            p.var_map[name2] = p.var_count
-            p.var_count++
+            p.var_map[name2] = VarInfo{ segment: 'argument', index: p.arg_count }
+            p.arg_count++
         }
     }
 }
 
 fn (mut p Parser) parse_var_dec() {
     p.eat('var')
-    p.advance()
+    _ = p.advance() // type
     name := p.advance()
-    p.var_map[name] = p.var_count
-    p.var_count++
+    p.var_map[name] = VarInfo{ segment: 'local', index: p.local_count }
+    p.local_count++
     for p.peek() == ',' {
         p.advance()
         name2 := p.advance()
-        p.var_map[name2] = p.var_count
-        p.var_count++
+        p.var_map[name2] = VarInfo{ segment: 'local', index: p.local_count }
+        p.local_count++
     }
     p.eat(';')
 }
@@ -123,7 +150,8 @@ fn (mut p Parser) parse_let() {
         p.eat('[')
         p.parse_expression()
         p.eat(']')
-        p.write('push local ${p.var_index(var_name)}')
+        vi := p.var_index(var_name)
+        p.write('push ${vi.segment} ${vi.index}')
         p.write('add')
     }
     p.eat('=')
@@ -135,7 +163,8 @@ fn (mut p Parser) parse_let() {
         p.write('push temp 0')
         p.write('pop that 0')
     } else {
-        p.write('pop local ${p.var_index(var_name)}')
+        vi := p.var_index(var_name)
+        p.write('pop ${vi.segment} ${vi.index}')
     }
 }
 
@@ -157,7 +186,8 @@ fn (mut p Parser) parse_if() {
     if p.peek() == 'else' {
         p.write('goto $end')
         p.write('label $f')
-        p.eat('else'); p.eat('{')
+        p.eat('else')
+        p.eat('{')
         p.parse_statements()
         p.eat('}')
         p.write('label $end')
@@ -171,7 +201,8 @@ fn (mut p Parser) parse_while() {
     end := 'WHILE_END${p.label_index}'
     p.label_index++
     p.write('label $exp')
-    p.eat('while'); p.eat('(')
+    p.eat('while')
+    p.eat('(')
     p.parse_expression()
     p.eat(')')
     p.write('not')
@@ -223,7 +254,6 @@ fn (mut p Parser) parse_expression() {
 
 fn (mut p Parser) parse_term() {
     token := p.peek()
-
     if token == '(' {
         p.eat('(')
         p.parse_expression()
@@ -231,48 +261,60 @@ fn (mut p Parser) parse_term() {
     } else if token in ['-', '~'] {
         op := p.advance()
         p.parse_term()
-        p.write(if op == '-' { 'neg' } else { 'not' })
+        if op == '-' {
+            p.write('neg')
+        } else {
+            p.write('not')
+        }
     } else if is_integer(token) {
         val := p.advance().int()
         p.write('push constant $val')
-    } else if token.len >= 2 && token[0] == `\"` && token[token.len - 1] == `\"` {
-        // Handle string constant
-        str := p.advance()[1..token.len - 1] // remove surrounding quotes
+    } else if token.len >= 2 && token[0] == `"` && token[token.len - 1] == `"` {
+        str := p.advance()[1..token.len - 1]
         p.write('push constant ${str.len}')
         p.write('call String.new 1')
         for ch in str.runes() {
             p.write('push constant ${int(ch)}')
             p.write('call String.appendChar 2')
         }
+    } else if token in ['true'] {
+        _ = p.advance()
+        p.write('push constant 0')
+        p.write('not')
+    } else if token in ['false', 'null'] {
+        _ = p.advance()
+        p.write('push constant 0')
     } else {
         name := p.advance()
         if p.peek() == '[' {
             p.eat('[')
             p.parse_expression()
             p.eat(']')
-            p.write('push local ${p.var_index(name)}')
+            vi := p.var_index(name)
+            p.write('push ${vi.segment} ${vi.index}')
             p.write('add')
             p.write('pop pointer 1')
             p.write('push that 0')
         } else if p.peek() in ['(', '.'] {
-            p.index-- // backtrack
+            p.index--
             p.parse_subroutine_call()
         } else {
-            p.write('push local ${p.var_index(name)}')
+            vi := p.var_index(name)
+            p.write('push ${vi.segment} ${vi.index}')
         }
     }
 }
 
-
 fn (mut p Parser) parse_subroutine_call() {
     name := p.advance()
-    mut full_name := name
+    mut full_name := ''
     mut arg_count := 0
     if p.peek() == '.' {
         p.eat('.')
-        full_name = '${name}.${p.advance()}'
+        method := p.advance()
+        full_name = name + '.' + method
     } else {
-        full_name = '${p.class_name}.$name'
+        full_name = p.class_name + '.' + name
     }
     p.eat('(')
     arg_count += p.parse_expression_list()
@@ -294,9 +336,13 @@ fn (mut p Parser) parse_expression_list() int {
     return count
 }
 
-fn (p Parser) var_index(name string) int {
+fn (p Parser) var_index(name string) VarInfo {
     if name in p.var_map {
         return p.var_map[name]
+    }
+    println('--- CURRENT VARIABLES ---')
+    for k, v in p.var_map {
+        println('$k => $v')
     }
     panic('Unknown variable: $name')
 }
