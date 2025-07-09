@@ -12,6 +12,7 @@ struct Parser {
         class_name   string
         output       string
         label_index  int
+		loop_index   int
         local_count  int
         arg_count    int
         field_count  int
@@ -197,9 +198,9 @@ fn (mut p Parser) parse_if() {
 }
 
 fn (mut p Parser) parse_while() {
-    exp := 'WHILE_EXP${p.label_index}'
-    end := 'WHILE_END${p.label_index}'
-    p.label_index++
+    exp := 'WHILE_EXP${p.loop_index}'
+    end := 'WHILE_END${p.loop_index}'
+    p.loop_index++
     p.write('label $exp')
     p.eat('while')
     p.eat('(')
