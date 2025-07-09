@@ -76,6 +76,8 @@ fn (mut p Parser) parse_class_var_dec() {
 }
 
 fn (mut p Parser) parse_subroutine() {
+    p.label_index = 0
+    p.loop_index = 0
     _ = p.advance() // constructor/function/method
     _ = p.advance() // return type
     sub_name := p.advance()
